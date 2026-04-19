@@ -1,0 +1,19 @@
+services:
+  web:
+    build: .
+    image: warranty-list:latest
+    ports:
+      - "8087:8087"
+    env_file:
+      - .env
+    environment:
+      PORT: "8087"
+      FLASK_DEBUG: "false"
+      SQLITE_PATH: /data/data.db
+    volumes:
+      - sqlite_data:/data
+      - uploads_data:/app/uploads
+
+volumes:
+  sqlite_data:
+  uploads_data:

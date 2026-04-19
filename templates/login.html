@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ t('meta.login_title') }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.css') }}">
+</head>
+<body class="min-h-screen bg-slate-100 text-base text-slate-800 antialiased">
+  <div class="mx-auto flex min-h-screen max-w-md flex-col justify-center px-4 py-12">
+    <div class="mb-8 text-center">
+      <h1 class="text-2xl font-bold text-slate-900">{{ t('login.title') }}</h1>
+      <p class="mt-1 text-sm text-slate-500">{{ t('login.subtitle') }}</p>
+    </div>
+    <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60 sm:p-8">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="mb-4 space-y-2">
+            {% for cat, msg in messages %}
+              <div class="rounded-lg border px-3 py-2 text-sm {% if cat == 'ok' %}border-emerald-200 bg-emerald-50 text-emerald-900{% else %}border-red-200 bg-red-50 text-red-900{% endif %}">{{ msg }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+      <form method="post" class="space-y-4">
+        <input type="hidden" name="next" value="{{ next }}">
+        <div>
+          <label for="password" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('login.password') }}</label>
+          <input type="password" id="password" name="password" required autocomplete="current-password"
+            class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+        </div>
+        <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+          <input type="checkbox" name="remember" value="1" class="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+          <span>{{ t('login.remember') }}</span>
+        </label>
+        <button type="submit" class="w-full rounded-xl bg-indigo-600 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+          {{ t('login.submit') }}
+        </button>
+      </form>
+      <div class="mt-6 border-t border-slate-100 pt-4">
+        <label for="login-lang" class="mb-1.5 block text-center text-xs font-semibold uppercase tracking-wide text-slate-500">{{ t('lang.label') }}</label>
+        <select id="login-lang" class="w-full cursor-pointer rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800" onchange="if(this.value) window.location.href=this.value;">
+          {% for code in available_locales() %}
+            <option value="{{ url_for('set_language', code=code) }}" {% if code == lang %}selected{% endif %}>{{ locale_label(code) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

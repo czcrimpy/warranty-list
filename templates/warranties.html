@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% from "macros.html" import select_field %}
+{% block title %}{{ t('meta.page_lists') }}{% endblock %}
+{% block body %}
+<div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+  <div>
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{{ t('warranties.title') }}</h1>
+    <p class="mt-0.5 text-base text-slate-500 md:text-sm">{{ t('warranties.subtitle') }}</p>
+  </div>
+  <a href="{{ url_for('add_warranty') }}" class="inline-flex w-fit items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-base font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 md:text-sm">
+    {{ t('warranties.add') }}
+  </a>
+</div>
+
+<div class="mb-4 rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
+  <form method="get" action="{{ url_for('warranties_list') }}" class="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
+    <div class="grid min-w-0 flex-1 gap-3 sm:grid-cols-2 lg:max-w-xl lg:flex-none">
+      <div>
+        <label for="product" class="mb-0.5 block text-base font-medium text-slate-600 md:text-xs">{{ t('warranties.filter_product') }}</label>
+        <input type="text" id="product" name="product" value="{{ filters.product }}" placeholder="{{ t('warranties.ph_product') }}"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 md:py-1.5 md:text-sm">
+      </div>
+      <div>
+        <label for="seller" class="mb-0.5 block text-base font-medium text-slate-600 md:text-xs">{{ t('warranties.filter_seller') }}</label>
+        <input type="text" id="seller" name="seller" value="{{ filters.seller }}" placeholder="{{ t('warranties.ph_seller') }}"
+          class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 md:py-1.5 md:text-sm">
+      </div>
+    </div>
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-end lg:gap-2">
+      <div class="w-full sm:w-44">
+        <label for="category_id" class="mb-0.5 block text-base font-medium text-slate-600 md:text-xs">{{ t('warranties.filter_category') }}</label>
+        {% call select_field('category_id', 'category_id') %}
+          <option value="" {% if not filters.category_id %}selected{% endif %}>{{ t('warranties.status_all_cat') }}</option>
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if filters.category_id|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        {% endcall %}
+      </div>
+      <div class="w-full sm:w-52">
+        <label for="status" class="mb-0.5 block text-base font-medium text-slate-600 md:text-xs">{{ t('warranties.filter_status') }}</label>
+        {% call select_field('status', 'status') %}
+          <option value="" {% if not filters.status %}selected{% endif %}>{{ t('warranties.status_all') }}</option>
+          <option value="active" {% if filters.status == 'active' %}selected{% endif %}>{{ t('warranties.status_active') }}</option>
+          <option value="soon" {% if filters.status == 'soon' %}selected{% endif %}>{{ t('warranties.status_soon') }}</option>
+          <option value="expired" {% if filters.status == 'expired' %}selected{% endif %}>{{ t('warranties.status_expired') }}</option>
+        {% endcall %}
+      </div>
+      <div class="flex shrink-0 flex-wrap gap-2">
+        <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-base font-semibold text-white shadow-sm transition hover:bg-indigo-700 md:px-3 md:py-1.5 md:text-sm">{{ t('warranties.filter_btn') }}</button>
+        {% if has_filters %}
+        <a href="{{ url_for('warranties_list') }}" class="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-base font-medium text-slate-700 shadow-sm hover:bg-slate-50 md:px-3 md:py-1.5 md:text-sm">{{ t('warranties.filter_reset') }}</a>
+        {% endif %}
+      </div>
+    </div>
+  </form>
+</div>
+
+<div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-200/50">
+  <div class="overflow-x-auto">
+    <table class="min-w-full divide-y divide-slate-200 text-left text-base md:text-sm">
+      <thead class="bg-slate-50">
+        <tr>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_thumb') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_product') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_seller') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_purchase') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_until') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_category') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_status') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4">{{ t('warranties.col_file') }}</th>
+          <th class="whitespace-nowrap px-3 py-3 font-semibold text-slate-700 sm:px-4"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100 bg-white">
+        {% for w in warranties %}
+        <tr class="transition hover:bg-slate-50/80">
+          <td class="whitespace-nowrap px-3 py-3 align-middle sm:px-4">
+            {% if w.thumbnail_image %}
+              <img class="h-14 w-14 rounded-lg object-cover ring-1 ring-slate-200" src="{{ url_for('serve_upload', filename=w.thumbnail_image.split('/', 1)[1]) }}" alt="">
+            {% else %}
+              <span class="text-slate-400">{{ t('common.empty') }}</span>
+            {% endif %}
+          </td>
+          <td class="px-3 py-3 font-medium text-slate-900 sm:px-4">{{ w.product_name }}</td>
+          <td class="px-3 py-3 text-slate-600 sm:px-4">{{ w.seller or t('common.empty') }}</td>
+          <td class="whitespace-nowrap px-3 py-3 text-slate-600 sm:px-4">{{ w.purchase_date|cz_date }}</td>
+          <td class="whitespace-nowrap px-3 py-3 sm:px-4 {% if w.expired %}font-medium text-red-600{% elif w.ending_soon %}font-medium text-amber-700{% else %}text-slate-700{% endif %}">{{ w.warranty_until|cz_date }}</td>
+          <td class="px-3 py-3 text-slate-600 sm:px-4">{{ w.category_name or t('common.empty') }}</td>
+          <td class="whitespace-nowrap px-3 py-3 sm:px-4">
+            {% if w.expired %}
+              <span class="inline-flex rounded-full bg-red-100 px-2.5 py-1 text-xs font-semibold text-red-700 sm:py-0.5">{{ t('warranties.badge_expired') }}</span>
+            {% elif w.ending_soon %}
+              <span class="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-900 sm:py-0.5">{{ t('warranties.badge_soon') }}</span>
+            {% else %}
+              <span class="inline-flex rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800 sm:py-0.5">{{ t('warranties.badge_active') }}</span>
+            {% endif %}
+          </td>
+          <td class="whitespace-nowrap px-3 py-3 sm:px-4">
+            {% if w.warranty_file %}
+              <a href="{{ url_for('serve_upload', filename=w.warranty_file.split('/', 1)[1]) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('warranties.open') }}</a>
+            {% else %}
+              <span class="text-slate-400">{{ t('common.empty') }}</span>
+            {% endif %}
+          </td>
+          <td class="whitespace-nowrap px-3 py-3 sm:px-4">
+            <div class="flex flex-row flex-nowrap items-center gap-2">
+              <a href="{{ url_for('edit_warranty', wid=w.id) }}" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:py-1.5 md:text-xs">{{ t('warranties.edit') }}</a>
+              <form method="post" action="{{ url_for('delete_warranty', wid=w.id) }}" class="inline shrink-0" onsubmit="return confirm({{ t('warranties.delete_confirm')|tojson }});">
+                <button type="submit" class="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 md:py-1.5 md:text-xs">{{ t('warranties.delete') }}</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="px-4 py-12 text-center text-base text-slate-500 md:text-sm">
+            {% if has_filters %}{{ t('warranties.empty_filtered') }}{% else %}{{ t('warranties.empty') }}{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

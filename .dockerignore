@@ -1,0 +1,13 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.venv
+venv
+node_modules
+.env
+*.md
+.cursor
+data.db
+uploads/*
+!uploads/.gitkeep

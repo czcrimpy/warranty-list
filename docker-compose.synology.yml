@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  web:
+    build: .
+    image: warranty-list:latest
+    container_name: warranty-list
+    restart: unless-stopped
+    ports:
+      - "9501:8087"
+    environment:
+      APP_PASSWORD: "admin1234"
+      SECRET_KEY: "warranty-list-set-to-random-string"
+      PORT: "8087"
+      FLASK_DEBUG: "false"
+      SQLITE_PATH: /data/data.db
+    volumes:
+      - /volume1/docker/warranty-list/db:/data
+      - /volume1/docker/warranty-list/uploads:/app/uploads

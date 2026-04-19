@@ -1,0 +1,10 @@
+{
+  "name": "warranty-list",
+  "private": true,
+  "scripts": {
+    "build:css": "tailwindcss -i ./static/src/tailwind-input.css -o ./static/css/tailwind.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.17"
+  }
+}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% from "macros.html" import select_field %}
+{% block title %}{% if edit %}{{ t('meta.page_wform_edit') }}{% else %}{{ t('meta.page_wform_add') }}{% endif %}{% endblock %}
+{% block body %}
+<div class="mx-auto max-w-2xl">
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{% if edit %}{{ t('wform.title_edit') }}{% else %}{{ t('wform.title_add') }}{% endif %}</h1>
+    <p class="mt-1 text-sm text-slate-500">{{ t('wform.hint_required') }}</p>
+  </div>
+
+  {% set w = warranty if warranty else {} %}
+  <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-md shadow-slate-200/50 sm:p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-5">
+      <div>
+        <label for="product_name" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.product') }} <span class="text-red-500">{{ t('common.required_star') }}</span></label>
+        <input type="text" id="product_name" name="product_name" required
+          class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          value="{% if form is not none %}{{ form.get('product_name', '') }}{% else %}{{ w.get('product_name', '') }}{% endif %}">
+      </div>
+
+      <div>
+        <label for="seller" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.seller') }}</label>
+        <input type="text" id="seller" name="seller"
+          class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+          value="{% if form is not none %}{{ form.get('seller', '') }}{% else %}{{ w.get('seller', '') }}{% endif %}">
+      </div>
+
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div>
+          <label for="purchase_date" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.purchase_date') }}</label>
+          <input type="date" id="purchase_date" name="purchase_date"
+            class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            value="{% if form is not none %}{{ form.get('purchase_date', '') }}{% else %}{{ w.get('purchase_date', '') }}{% endif %}">
+        </div>
+        <div>
+          <label for="warranty_until" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.warranty_until') }} <span class="text-red-500">{{ t('common.required_star') }}</span></label>
+          <input type="date" id="warranty_until" name="warranty_until" required
+            class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            value="{% if form is not none %}{{ form.get('warranty_until', '') }}{% else %}{{ w.get('warranty_until', '') }}{% endif %}">
+        </div>
+      </div>
+
+      <div>
+        <label for="category_id" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.category') }}</label>
+        {% call select_field('category_id', 'category_id') %}
+          <option value="">{{ t('common.empty') }}</option>
+          {% if form is not none %}
+            {% set sel = form.get('category_id', '') %}
+          {% else %}
+            {% set sel = w.get('category_id', '') %}
+          {% endif %}
+          {% for c in categories %}
+            <option value="{{ c.id }}" {% if sel|string == c.id|string %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        {% endcall %}
+      </div>
+
+      <div>
+        <label for="note" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.note') }}</label>
+        <textarea id="note" name="note" rows="4"
+          class="block w-full rounded-xl border border-slate-300 px-4 py-2.5 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20">{% if form is not none %}{{ form.get('note', '') }}{% else %}{{ w.get('note', '') }}{% endif %}</textarea>
+      </div>
+
+      <div>
+        <label for="thumbnail" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.thumbnail') }}</label>
+        <input type="file" id="thumbnail" name="thumbnail" accept="image/*"
+          class="block w-full cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:border-slate-400">
+        {% if edit and w.get('thumbnail_image') %}
+          <p class="mt-2 text-xs text-slate-500">{{ t('wform.current_view') }} <a href="{{ url_for('serve_upload', filename=w.thumbnail_image.split('/', 1)[1]) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('wform.view') }}</a> {{ t('wform.keep_hint') }}</p>
+        {% endif %}
+      </div>
+
+      <div>
+        <label for="warranty_file" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.warranty_file') }}</label>
+        <input type="file" id="warranty_file" name="warranty_file" accept=".pdf,image/*"
+          class="block w-full cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:border-slate-400">
+        {% if edit and w.get('warranty_file') %}
+          <p class="mt-2 text-xs text-slate-500">{{ t('wform.current_view') }} <a href="{{ url_for('serve_upload', filename=w.warranty_file.split('/', 1)[1]) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('wform.open') }}</a> {{ t('wform.keep_hint') }}</p>
+        {% endif %}
+      </div>
+
+      <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
+        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+          {{ t('wform.save') }}
+        </button>
+        <a href="{{ url_for('warranties_list') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+          {{ t('wform.cancel') }}
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

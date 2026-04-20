@@ -4,11 +4,23 @@ import sqlite3
 import uuid
 from contextlib import closing
 from datetime import date, datetime, timedelta
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 
 from dotenv import load_dotenv
-from flask import Flask, flash, g, redirect, render_template, request, send_from_directory, session, url_for
+from flask import (
+    Flask,
+    abort,
+    flash,
+    g,
+    redirect,
+    render_template,
+    request,
+    send_file,
+    session,
+    url_for,
+)
 from PIL import Image, ImageOps
 from werkzeug.utils import secure_filename
 
@@ -26,7 +38,6 @@ from i18n import (
 )
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
 DB_PATH = Path(os.environ.get("SQLITE_PATH", str(BASE_DIR / "data.db")))
 
 load_dotenv(BASE_DIR / ".env")
@@ -101,20 +112,29 @@ def cz_date(value):
 app.jinja_env.filters["cz_date"] = cz_date
 
 
-def ensure_dirs():
-    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-
-
 def get_conn():
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
 def init_db():
-    ensure_dirs()
     with closing(get_conn()) as conn:
+        n_tables = conn.execute(
+            "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        ).fetchone()["c"]
+        if n_tables == 0:
+            conn.execute("PRAGMA auto_vacuum = FULL")
+
+        w = conn.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='warranties'"
+        ).fetchone()
+        if w and w["sql"] and "thumbnail_blob" not in (w["sql"] or "").lower():
+            conn.execute("DROP TABLE IF EXISTS warranties")
+
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS categories (
@@ -129,31 +149,19 @@ def init_db():
                 warranty_until TEXT NOT NULL,
                 category_id INTEGER REFERENCES categories(id),
                 note TEXT,
-                thumbnail_image TEXT,
-                warranty_file TEXT
+                thumbnail_blob BLOB,
+                warranty_pdf_blob BLOB
             );
             """
         )
         conn.commit()
+        conn.execute("PRAGMA optimize")
 
 
 def allowed_ext(filename, allowed):
     if not filename or "." not in filename:
         return False
     return filename.rsplit(".", 1)[1].lower() in allowed
-
-
-def save_upload(upload, prefix, allowed):
-    if not upload or upload.filename == "":
-        return None
-    raw = secure_filename(upload.filename)
-    if not raw or not allowed_ext(raw, allowed):
-        return None
-    ext = raw.rsplit(".", 1)[1].lower()
-    fname = f"{prefix}_{uuid.uuid4().hex}.{ext}"
-    fpath = UPLOAD_DIR / fname
-    upload.save(fpath)
-    return f"uploads/{fname}"
 
 
 def save_warranty_document(upload):
@@ -172,20 +180,16 @@ def save_warranty_document(upload):
         raise
     except Exception as e:
         raise WarrantyPdfError("flash.warranty_doc_failed") from e
-    fname = f"doc_{uuid.uuid4().hex}.pdf"
-    fpath = UPLOAD_DIR / fname
-    fpath.write_bytes(pdf_bytes)
-    return f"uploads/{fname}"
+    return pdf_bytes
 
 
 def save_thumbnail(upload):
+    """Return JPEG bytes for DB blob, or None."""
     if not upload or upload.filename == "":
         return None
     raw = secure_filename(upload.filename)
     if not raw or not allowed_ext(raw, ALLOWED_THUMB):
         return None
-    fname = f"thumb_{uuid.uuid4().hex}.jpg"
-    fpath = UPLOAD_DIR / fname
     resample = getattr(Image, "Resampling", Image).LANCZOS
     try:
         upload.stream.seek(0)
@@ -199,11 +203,11 @@ def save_thumbnail(upload):
             rgb = Image.new("RGB", rgba.size, (255, 255, 255))
             rgb.paste(rgba, mask=rgba.split()[3])
         rgb.thumbnail((THUMB_MAX_EDGE, THUMB_MAX_EDGE), resample)
-        rgb.save(fpath, "JPEG", quality=88, optimize=True)
-        return f"uploads/{fname}"
+        buf = BytesIO()
+        rgb.save(buf, format="JPEG", quality=88, optimize=True)
+        return buf.getvalue()
     except Exception:
-        upload.stream.seek(0)
-        return save_upload(upload, "thumb", ALLOWED_THUMB)
+        return None
 
 
 def parse_db_date(s):
@@ -245,26 +249,36 @@ def like_pattern(term):
     )
 
 
-def delete_file_if_exists(rel_path):
-    if not rel_path:
-        return
-    norm = str(rel_path).replace("\\", "/")
-    if not norm.startswith("uploads/"):
-        return
-    p = (BASE_DIR / rel_path).resolve()
-    root = UPLOAD_DIR.resolve()
-    if root != p and root not in p.parents:
-        return
-    try:
-        if p.is_file():
-            p.unlink()
-    except OSError:
-        pass
+@app.route("/warranty/<int:wid>/thumbnail")
+def warranty_thumbnail(wid):
+    with closing(get_conn()) as conn:
+        row = conn.execute(
+            "SELECT thumbnail_blob FROM warranties WHERE id = ?", (wid,)
+        ).fetchone()
+    if not row or row["thumbnail_blob"] is None:
+        abort(404)
+    return send_file(
+        BytesIO(row["thumbnail_blob"]),
+        mimetype="image/jpeg",
+        max_age=3600,
+        download_name=f"warranty-{wid}-thumb.jpg",
+    )
 
 
-@app.route("/uploads/<path:filename>")
-def serve_upload(filename):
-    return send_from_directory(UPLOAD_DIR, filename)
+@app.route("/warranty/<int:wid>/document")
+def warranty_document(wid):
+    with closing(get_conn()) as conn:
+        row = conn.execute(
+            "SELECT warranty_pdf_blob FROM warranties WHERE id = ?", (wid,)
+        ).fetchone()
+    if not row or row["warranty_pdf_blob"] is None:
+        abort(404)
+    return send_file(
+        BytesIO(row["warranty_pdf_blob"]),
+        mimetype="application/pdf",
+        max_age=3600,
+        download_name=f"warranty-{wid}.pdf",
+    )
 
 
 @app.route("/set-language/<code>", methods=["GET"])
@@ -399,7 +413,11 @@ def warranties_list():
 
     where_sql = " AND ".join(conditions) if conditions else "1=1"
     sql = f"""
-            SELECT w.*, c.name AS category_name
+            SELECT w.id, w.product_name, w.seller, w.purchase_date, w.warranty_until,
+                   w.category_id, w.note,
+                   (w.thumbnail_blob IS NOT NULL) AS has_thumbnail,
+                   (w.warranty_pdf_blob IS NOT NULL) AS has_pdf,
+                   c.name AS category_name
             FROM warranties w
             LEFT JOIN categories c ON c.id = w.category_id
             WHERE {where_sql}
@@ -427,6 +445,8 @@ def warranties_list():
     items = []
     for r in rows:
         d = dict(r)
+        d["has_thumbnail"] = bool(d.get("has_thumbnail"))
+        d["has_pdf"] = bool(d.get("has_pdf"))
         d["expired"] = is_expired(d["warranty_until"], today)
         d["ending_soon"] = is_ending_soon(d["warranty_until"], today)
         d["days_left"] = days_until_warranty_end(d["warranty_until"], today)
@@ -463,7 +483,6 @@ def add_warranty():
         try:
             doc = save_warranty_document(request.files.get("warranty_file"))
         except WarrantyPdfError as e:
-            delete_file_if_exists(thumb)
             flash(translate(e.key), "error")
             return render_template(
                 "warranty_form.html", categories=load_categories(), form=request.form
@@ -472,7 +491,7 @@ def add_warranty():
             conn.execute(
                 """
                 INSERT INTO warranties
-                (product_name, seller, purchase_date, warranty_until, category_id, note, thumbnail_image, warranty_file)
+                (product_name, seller, purchase_date, warranty_until, category_id, note, thumbnail_blob, warranty_pdf_blob)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (product_name, seller, purchase_date, warranty_until, cat_val, note, thumb, doc),
@@ -483,10 +502,22 @@ def add_warranty():
     return render_template("warranty_form.html", categories=load_categories(), form=None)
 
 
+def _warranty_row_for_form(wid):
+    with closing(get_conn()) as conn:
+        return conn.execute(
+            """
+            SELECT id, product_name, seller, purchase_date, warranty_until, category_id, note,
+                   (thumbnail_blob IS NOT NULL) AS has_thumbnail,
+                   (warranty_pdf_blob IS NOT NULL) AS has_pdf
+            FROM warranties WHERE id = ?
+            """,
+            (wid,),
+        ).fetchone()
+
+
 @app.route("/edit/<int:wid>", methods=["GET", "POST"])
 def edit_warranty(wid):
-    with closing(get_conn()) as conn:
-        row = conn.execute("SELECT * FROM warranties WHERE id = ?", (wid,)).fetchone()
+    row = _warranty_row_for_form(wid)
     if not row:
         flash(translate("flash.warranty_not_found"), "error")
         return redirect(url_for("warranties_list"))
@@ -511,7 +542,6 @@ def edit_warranty(wid):
         try:
             doc = save_warranty_document(request.files.get("warranty_file"))
         except WarrantyPdfError as e:
-            delete_file_if_exists(thumb)
             flash(translate(e.key), "error")
             return render_template(
                 "warranty_form.html",
@@ -520,18 +550,19 @@ def edit_warranty(wid):
                 warranty=dict(row),
                 edit=True,
             )
-        thumb_path = thumb or row["thumbnail_image"]
-        doc_path = doc or row["warranty_file"]
-        if thumb and row["thumbnail_image"]:
-            delete_file_if_exists(row["thumbnail_image"])
-        if doc and row["warranty_file"]:
-            delete_file_if_exists(row["warranty_file"])
+        with closing(get_conn()) as conn:
+            blobs = conn.execute(
+                "SELECT thumbnail_blob, warranty_pdf_blob FROM warranties WHERE id = ?",
+                (wid,),
+            ).fetchone()
+        thumb_blob = thumb if thumb is not None else blobs["thumbnail_blob"]
+        pdf_blob = doc if doc is not None else blobs["warranty_pdf_blob"]
         with closing(get_conn()) as conn:
             conn.execute(
                 """
                 UPDATE warranties SET
                     product_name = ?, seller = ?, purchase_date = ?, warranty_until = ?,
-                    category_id = ?, note = ?, thumbnail_image = ?, warranty_file = ?
+                    category_id = ?, note = ?, thumbnail_blob = ?, warranty_pdf_blob = ?
                 WHERE id = ?
                 """,
                 (
@@ -541,8 +572,8 @@ def edit_warranty(wid):
                     warranty_until,
                     cat_val,
                     note,
-                    thumb_path,
-                    doc_path,
+                    thumb_blob,
+                    pdf_blob,
                     wid,
                 ),
             )
@@ -561,15 +592,9 @@ def edit_warranty(wid):
 @app.route("/delete/<int:wid>", methods=["POST"])
 def delete_warranty(wid):
     with closing(get_conn()) as conn:
-        row = conn.execute(
-            "SELECT thumbnail_image, warranty_file FROM warranties WHERE id = ?",
-            (wid,),
-        ).fetchone()
-        if row:
-            conn.execute("DELETE FROM warranties WHERE id = ?", (wid,))
-            conn.commit()
-            delete_file_if_exists(row["thumbnail_image"])
-            delete_file_if_exists(row["warranty_file"])
+        cur = conn.execute("DELETE FROM warranties WHERE id = ?", (wid,))
+        conn.commit()
+        if cur.rowcount:
             flash(translate("flash.warranty_deleted"), "ok")
         else:
             flash(translate("flash.warranty_not_found"), "error")
@@ -648,7 +673,6 @@ def _ensure():
     _scan_locales()
     g.lang = resolve_locale()
 
-    ensure_dirs()
     if not _db_ok:
         init_db()
         _db_ok = True

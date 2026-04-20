@@ -75,8 +75,8 @@
         {% for w in warranties %}
         <tr class="transition hover:bg-slate-50/80">
           <td class="whitespace-nowrap px-3 py-3 align-middle sm:px-4">
-            {% if w.thumbnail_image %}
-              <img class="h-14 w-14 rounded-lg object-cover ring-1 ring-slate-200" src="{{ url_for('serve_upload', filename=w.thumbnail_image.split('/', 1)[1]) }}" alt="">
+            {% if w.has_thumbnail %}
+              <img class="h-14 w-14 rounded-lg object-cover ring-1 ring-slate-200" src="{{ url_for('warranty_thumbnail', wid=w.id) }}" alt="">
             {% else %}
               <span class="text-slate-400">{{ t('common.empty') }}</span>
             {% endif %}
@@ -96,8 +96,8 @@
             {% endif %}
           </td>
           <td class="whitespace-nowrap px-3 py-3 sm:px-4">
-            {% if w.warranty_file %}
-              <a href="{{ url_for('serve_upload', filename=w.warranty_file.split('/', 1)[1]) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('warranties.open') }}</a>
+            {% if w.has_pdf %}
+              <a href="{{ url_for('warranty_document', wid=w.id) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('warranties.open') }}</a>
             {% else %}
               <span class="text-slate-400">{{ t('common.empty') }}</span>
             {% endif %}

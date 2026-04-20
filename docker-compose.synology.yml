@@ -16,4 +16,3 @@ services:
       SQLITE_PATH: /data/data.db
     volumes:
       - /volume1/docker/warranty-list/db:/data
-      - /volume1/docker/warranty-list/uploads:/app/uploads

@@ -29,8 +29,6 @@ COPY templates/ ./templates/
 COPY static/ ./static/
 COPY --from=css /build/static/css/tailwind.css ./static/css/tailwind.css
 
-RUN mkdir -p uploads
-
 EXPOSE 8087
 
 CMD ["python", "app.py"]

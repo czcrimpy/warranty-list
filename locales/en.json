@@ -96,7 +96,7 @@
   "wform.category": "Category",
   "wform.note": "Note",
   "wform.thumbnail": "Thumbnail image",
-  "wform.warranty_file": "Certificate file (PDF or image) — stored as A4 PDF (raster max 2048 px, ~90% of page)",
+  "wform.warranty_file": "Certificate file (PDF or image) — stored as A4 PDF (JPEG in PDF, long edge ~1500 px, ~90% of page)",
   "wform.current_view": "Current:",
   "wform.view": "view",
   "wform.open": "open",

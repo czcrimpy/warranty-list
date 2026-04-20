@@ -1,19 +1,21 @@
-"""Resize warranty uploads (image or PDF) and store as A4 PDF with JPEG raster pages (smaller than PNG for photos)."""
+"""Resize warranty uploads (image or PDF) and store as A4 PDF with JPEG raster pages."""
 from __future__ import annotations
 
 from io import BytesIO
 
 import fitz
 from PIL import Image, ImageOps
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.utils import ImageReader
-from reportlab.pdfgen import canvas
 
-DOC_MAX_EDGE = 2048
+# A4 in points (72 dpi, ISO 216)
+A4_W = 210 * 72 / 25.4
+A4_H = 297 * 72 / 25.4
+
 A4_FILL = 0.9
 MAX_PDF_PAGES = 40
-# Embedded raster: JPEG is much smaller than PNG for photographs / scans.
-JPEG_QUALITY = 84
+# Long edge after resize: enough for sharp A4 on screen/print; lower = smaller PDFs.
+DOC_MAX_EDGE = 1500
+# Embedded raster: JPEG inside PDF (PyMuPDF passes stream through as DCT).
+JPEG_QUALITY = 72
 JPEG_SUBSAMPLING = 2  # 4:2:0
 
 
@@ -109,29 +111,37 @@ def _build_pages(data: bytes, ext: str) -> list[Image.Image]:
 
 
 def images_to_a4_pdf(images: list[Image.Image]) -> bytes:
-    buf = BytesIO()
-    pw, ph = A4
-    box_w, box_h = pw * A4_FILL, ph * A4_FILL
-    margin_x = (pw - box_w) / 2
-    margin_y = (ph - box_h) / 2
-    c = canvas.Canvas(buf, pagesize=A4)
-    png_buffers: list[BytesIO] = []
-    for img in images:
-        png_buf = BytesIO()
-        img.save(png_buf, format="PNG", optimize=True)
-        png_buf.seek(0)
-        png_buffers.append(png_buf)
-        ir = ImageReader(png_buf)
-        iw, ih = img.size
-        scale = min(box_w / iw, box_h / ih)
-        dw, dh = iw * scale, ih * scale
-        x = margin_x + (box_w - dw) / 2
-        y_bottom = margin_y + (box_h - dh) / 2
-        c.drawImage(ir, x, y_bottom, width=dw, height=dh, mask="auto")
-        c.showPage()
-    c.save()
-    del png_buffers
-    return buf.getvalue()
+    """Build PDF with PyMuPDF so JPEG bytes stay as DCT streams (smaller than ReportLab path)."""
+    doc = fitz.open()
+    try:
+        box_w = A4_W * A4_FILL
+        box_h = A4_H * A4_FILL
+        margin_x = (A4_W - box_w) / 2
+        margin_y = (A4_H - box_h) / 2
+        for img in images:
+            rgb = _to_rgb(img)
+            raster_buf = BytesIO()
+            rgb.save(
+                raster_buf,
+                format="JPEG",
+                quality=JPEG_QUALITY,
+                optimize=True,
+                subsampling=JPEG_SUBSAMPLING,
+            )
+            jpeg_bytes = raster_buf.getvalue()
+            iw, ih = rgb.size
+            scale = min(box_w / iw, box_h / ih)
+            dw, dh = iw * scale, ih * scale
+            x0 = margin_x + (box_w - dw) / 2
+            # Previous ReportLab code used bottom-left origin; PyMuPDF uses top-left.
+            y_bottom = margin_y + (box_h - dh) / 2
+            y_top = A4_H - y_bottom - dh
+            rect = fitz.Rect(x0, y_top, x0 + dw, y_top + dh)
+            page = doc.new_page(width=A4_W, height=A4_H)
+            page.insert_image(rect, stream=jpeg_bytes, keep_proportion=False, overlay=True)
+        return doc.write()
+    finally:
+        doc.close()
 
 
 def warranty_upload_to_pdf_bytes(data: bytes, ext: str) -> bytes:

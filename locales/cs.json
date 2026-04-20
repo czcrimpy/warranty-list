@@ -94,7 +94,7 @@
   "wform.category": "Kategorie",
   "wform.note": "Poznámka",
   "wform.thumbnail": "Náhledový obrázek",
-  "wform.warranty_file": "Soubor listu (PDF nebo obrázek) — uloží se jako PDF A4 (náhled max. 2048 px, vyplní ~90 % strany)",
+  "wform.warranty_file": "Soubor listu (PDF nebo obrázek) — uloží se jako PDF A4 (JPEG v PDF, delší strana cca 1500 px, ~90 % strany)",
   "wform.current_view": "Aktuální:",
   "wform.view": "zobrazit",
   "wform.open": "otevřít",

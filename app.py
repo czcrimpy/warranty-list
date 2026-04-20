@@ -196,7 +196,7 @@ def allowed_ext(filename, allowed):
 
 
 def save_warranty_document(upload):
-    """Image or PDF → normalized A4 PDF (PNG pages, max edge 2048 px)."""
+    """Image or PDF → normalized A4 PDF (JPEG in PDF, long edge capped for size)."""
     if not upload or upload.filename == "":
         return None
     raw = secure_filename(upload.filename)

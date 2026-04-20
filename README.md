@@ -17,7 +17,7 @@ A small **Flask** web application for storing and managing **warranty certificat
 - **Add** and **edit** entries with:
   - Product name (required), seller, purchase date, warranty end date (required), category, free-text note.
   - **Thumbnail** (image; resized server-side).
-  - **Attachment** (PDF or image): each upload is **normalized to an A4 PDF** — raster pages as **PNG** (long edge at most **2048 px**), scaled to fit **90%** of the page while **preserving aspect ratio** (centered). Input PDFs may have up to **40** pages (one output page per input page).
+  - **Attachment** (PDF or image): each upload is **normalized to an A4 PDF** — pages are **JPEG** streams (PyMuPDF embeds DCT directly; long edge about **1500 px**, quality tuned for photos/scans), scaled to fit **90%** of the page while **preserving aspect ratio** (centered). Input PDFs may have up to **40** pages (one output page per input page).
 - **Delete** with confirmation; associated uploaded files are removed when replaced or deleted.
 
 ### Categories

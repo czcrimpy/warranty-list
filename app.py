@@ -115,20 +115,51 @@ app.jinja_env.filters["cz_date"] = cz_date
 def get_conn():
     conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
+    # auto_vacuum must be set before any user tables exist, and before journal_mode=WAL
+    # (WAL first would lock auto_vacuum at NONE on a new DB).
+    n_tables = conn.execute(
+        "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+    ).fetchone()["c"]
+    if n_tables == 0:
+        conn.execute("PRAGMA auto_vacuum = FULL")
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
+def wal_checkpoint_truncate():
+    """Best-effort: reset the WAL file (often large after big BLOB writes)."""
+    conn = sqlite3.connect(DB_PATH, timeout=60.0)
+    conn.isolation_level = None
+    try:
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
+def compact_sqlite_db():
+    """Reclaim disk space after large BLOB deletes.
+
+    ``PRAGMA auto_vacuum=FULL`` truncates free pages at the DB tail, but
+    fragmentation and a large ``-wal`` file can still leave a huge ``.db``.
+    ``wal_checkpoint(TRUNCATE)`` shrinks the WAL; ``VACUUM`` defragments the main file.
+    """
+    wal_checkpoint_truncate()
+    conn = sqlite3.connect(DB_PATH, timeout=120.0)
+    conn.isolation_level = None
+    try:
+        conn.execute("VACUUM")
+    except sqlite3.OperationalError:
+        pass
+    finally:
+        conn.close()
+
+
 def init_db():
     with closing(get_conn()) as conn:
-        n_tables = conn.execute(
-            "SELECT COUNT(*) AS c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        ).fetchone()["c"]
-        if n_tables == 0:
-            conn.execute("PRAGMA auto_vacuum = FULL")
-
         w = conn.execute(
             "SELECT sql FROM sqlite_master WHERE type='table' AND name='warranties'"
         ).fetchone()
@@ -497,6 +528,7 @@ def add_warranty():
                 (product_name, seller, purchase_date, warranty_until, cat_val, note, thumb, doc),
             )
             conn.commit()
+        wal_checkpoint_truncate()
         flash(translate("flash.warranty_saved"), "ok")
         return redirect(url_for("warranties_list"))
     return render_template("warranty_form.html", categories=load_categories(), form=None)
@@ -578,6 +610,7 @@ def edit_warranty(wid):
                 ),
             )
             conn.commit()
+        wal_checkpoint_truncate()
         flash(translate("flash.warranty_updated"), "ok")
         return redirect(url_for("warranties_list"))
     return render_template(
@@ -591,13 +624,17 @@ def edit_warranty(wid):
 
 @app.route("/delete/<int:wid>", methods=["POST"])
 def delete_warranty(wid):
+    deleted = False
     with closing(get_conn()) as conn:
         cur = conn.execute("DELETE FROM warranties WHERE id = ?", (wid,))
         conn.commit()
         if cur.rowcount:
+            deleted = True
             flash(translate("flash.warranty_deleted"), "ok")
         else:
             flash(translate("flash.warranty_not_found"), "error")
+    if deleted:
+        compact_sqlite_db()
     return redirect(url_for("warranties_list"))
 
 

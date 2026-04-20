@@ -105,8 +105,8 @@
           <td class="whitespace-nowrap px-3 py-3 sm:px-4">
             <div class="flex flex-row flex-nowrap items-center gap-2">
               <a href="{{ url_for('edit_warranty', wid=w.id) }}" class="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-300 hover:bg-slate-50 md:py-1.5 md:text-xs">{{ t('warranties.edit') }}</a>
-              <form method="post" action="{{ url_for('delete_warranty', wid=w.id) }}" class="inline shrink-0" onsubmit="return confirm({{ t('warranties.delete_confirm')|tojson }});">
-                <button type="submit" class="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 md:py-1.5 md:text-xs">{{ t('warranties.delete') }}</button>
+              <form method="post" action="{{ url_for('delete_warranty', wid=w.id) }}" class="delete-warranty-form inline shrink-0" data-confirm={{ t('warranties.delete_confirm')|tojson }}>
+                <button type="submit" class="delete-warranty-submit rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 md:py-1.5 md:text-xs disabled:pointer-events-none disabled:opacity-70" data-loading="{{ t('warranties.delete_cleaning')|e }}">{{ t('warranties.delete') }}</button>
               </form>
             </div>
           </td>
@@ -122,4 +122,22 @@
     </table>
   </div>
 </div>
+<script>
+(function () {
+  document.querySelectorAll("form.delete-warranty-form").forEach(function (form) {
+    form.addEventListener("submit", function (ev) {
+      var msg = form.getAttribute("data-confirm");
+      if (msg && !window.confirm(msg)) {
+        ev.preventDefault();
+        return;
+      }
+      var btn = form.querySelector("button.delete-warranty-submit");
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      btn.setAttribute("aria-busy", "true");
+      btn.textContent = btn.getAttribute("data-loading") || "…";
+    });
+  });
+})();
+</script>
 {% endblock %}

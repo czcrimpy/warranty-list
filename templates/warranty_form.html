@@ -10,7 +10,7 @@
 
   {% set w = warranty if warranty else {} %}
   <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-md shadow-slate-200/50 sm:p-8">
-    <form method="post" enctype="multipart/form-data" class="space-y-5">
+    <form id="warranty-form" method="post" enctype="multipart/form-data" class="space-y-5">
       <div>
         <label for="product_name" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.product') }} <span class="text-red-500">{{ t('common.required_star') }}</span></label>
         <input type="text" id="product_name" name="product_name" required
@@ -80,7 +80,8 @@
       </div>
 
       <div class="flex flex-wrap gap-3 border-t border-slate-100 pt-6">
-        <button type="submit" class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        <button type="submit" id="wform-submit" data-loading="{{ t('wform.uploading')|e }}"
+          class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-70">
           {{ t('wform.save') }}
         </button>
         <a href="{{ url_for('warranties_list') }}" class="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
@@ -90,4 +91,17 @@
     </form>
   </div>
 </div>
+<script>
+(function () {
+  var form = document.getElementById("warranty-form");
+  var btn = document.getElementById("wform-submit");
+  if (!form || !btn) return;
+  form.addEventListener("submit", function () {
+    if (btn.disabled) return;
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.textContent = btn.getAttribute("data-loading") || "…";
+  });
+})();
+</script>
 {% endblock %}

@@ -74,7 +74,7 @@ Environment variables (optional `.env` in the project root):
 | `PORT`          | HTTP port when running `python app.py` (default `8087`). |
 | `FLASK_DEBUG`   | `1` / `true` / `yes` to enable Flask debug server. |
 
-Uploads are stored under `uploads/` (created automatically). Maximum upload size is **16 MB** per request.
+Thumbnails and warranty PDFs are stored as **BLOBs in SQLite** (no `uploads/` directory). Maximum upload size is **16 MB** per request.
 
 ---
 
@@ -102,7 +102,7 @@ npm run build:css
 
 ## Docker
 
-The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with `app.py`, `i18n.py`, `warranty_pdf.py`, `locales/`, `templates/`, and compiled CSS. For **Synology** (or similar), see `docker-compose.synology.yml`: mount persistent volumes for the database directory and `uploads/` as documented in that file.
+The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with `app.py`, `i18n.py`, `warranty_pdf.py`, `locales/`, `templates/`, and compiled CSS. For **Synology** (or similar), see `docker-compose.synology.yml`: mount a persistent volume for the **SQLite database directory** (e.g. `/data` → `SQLITE_PATH=/data/data.db`).
 
 ---
 
@@ -110,7 +110,7 @@ The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with 
 
 | Path            | Role |
 | --------------- | ---- |
-| `app.py`        | Routes, DB schema, uploads, auth. |
+| `app.py`        | Routes, DB schema, SQLite BLOBs for files, auth. |
 | `warranty_pdf.py` | Resize uploads, rasterize PDF pages, build A4 PDF output. |
 | `i18n.py`       | Locale scanning, resolution, translation helpers, cookie max-age constant. |
 | `locales/*.json`| Translation strings and optional `_meta`. |

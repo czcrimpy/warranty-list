@@ -9,5 +9,3 @@ node_modules
 *.md
 .cursor
 data.db
-uploads/*
-!uploads/.gitkeep

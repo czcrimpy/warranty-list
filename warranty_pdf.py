@@ -1,4 +1,4 @@
-"""Resize warranty uploads (image or PDF) and store as A4 PDF with PNG raster pages."""
+"""Resize warranty uploads (image or PDF) and store as A4 PDF with JPEG raster pages (smaller than PNG for photos)."""
 from __future__ import annotations
 
 from io import BytesIO
@@ -12,6 +12,9 @@ from reportlab.pdfgen import canvas
 DOC_MAX_EDGE = 2048
 A4_FILL = 0.9
 MAX_PDF_PAGES = 40
+# Embedded raster: JPEG is much smaller than PNG for photographs / scans.
+JPEG_QUALITY = 84
+JPEG_SUBSAMPLING = 2  # 4:2:0
 
 
 class WarrantyPdfError(Exception):

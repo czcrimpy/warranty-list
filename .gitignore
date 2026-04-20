@@ -7,3 +7,7 @@ venv/
 .venv/
 synology-data/
 uploads/
+data.db
+data.db-journal
+data.db-shm
+data.db-wal

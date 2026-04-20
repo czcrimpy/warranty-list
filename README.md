@@ -17,7 +17,7 @@ A small **Flask** web application for storing and managing **warranty certificat
 - **Add** and **edit** entries with:
   - Product name (required), seller, purchase date, warranty end date (required), category, free-text note.
   - **Thumbnail** (image; resized server-side).
-  - **Attachment** (PDF or image).
+  - **Attachment** (PDF or image): each upload is **normalized to an A4 PDF** — raster pages as **PNG** (long edge at most **2048 px**), scaled to fit **90%** of the page while **preserving aspect ratio** (centered). Input PDFs may have up to **40** pages (one output page per input page).
 - **Delete** with confirmation; associated uploaded files are removed when replaced or deleted.
 
 ### Categories
@@ -57,7 +57,7 @@ A small **Flask** web application for storing and managing **warranty certificat
 | Runtime      | Python 3.12+ (3.x generally fine)   |
 | Web          | Flask 3.x                           |
 | Database     | SQLite (`sqlite3` in the stdlib)   |
-| Images       | Pillow (thumbnails, EXIF handling)  |
+| Images / PDF | Pillow, PyMuPDF (rasterize PDF), ReportLab (build A4 PDF) |
 | Styling      | Tailwind CSS 3 (built to static CSS) |
 
 ---
@@ -102,7 +102,7 @@ npm run build:css
 
 ## Docker
 
-The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with `app.py`, `i18n.py`, `locales/`, `templates/`, and compiled CSS. For **Synology** (or similar), see `docker-compose.synology.yml`: mount persistent volumes for the database directory and `uploads/` as documented in that file.
+The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with `app.py`, `i18n.py`, `warranty_pdf.py`, `locales/`, `templates/`, and compiled CSS. For **Synology** (or similar), see `docker-compose.synology.yml`: mount persistent volumes for the database directory and `uploads/` as documented in that file.
 
 ---
 
@@ -111,6 +111,7 @@ The `Dockerfile` builds Tailwind in a Node stage, then a slim Python image with 
 | Path            | Role |
 | --------------- | ---- |
 | `app.py`        | Routes, DB schema, uploads, auth. |
+| `warranty_pdf.py` | Resize uploads, rasterize PDF pages, build A4 PDF output. |
 | `i18n.py`       | Locale scanning, resolution, translation helpers, cookie max-age constant. |
 | `locales/*.json`| Translation strings and optional `_meta`. |
 | `templates/`    | Jinja2 HTML. |

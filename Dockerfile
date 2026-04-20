@@ -23,6 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app.py .
 COPY i18n.py .
+COPY warranty_pdf.py .
 COPY locales/ ./locales/
 COPY templates/ ./templates/
 COPY static/ ./static/

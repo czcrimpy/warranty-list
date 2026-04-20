@@ -12,6 +12,8 @@ from flask import Flask, flash, g, redirect, render_template, request, send_from
 from PIL import Image, ImageOps
 from werkzeug.utils import secure_filename
 
+from warranty_pdf import WarrantyPdfError, warranty_upload_to_pdf_bytes
+
 from i18n import (
     COOKIE_MAX_AGE,
     LANG_COOKIE,
@@ -151,6 +153,28 @@ def save_upload(upload, prefix, allowed):
     fname = f"{prefix}_{uuid.uuid4().hex}.{ext}"
     fpath = UPLOAD_DIR / fname
     upload.save(fpath)
+    return f"uploads/{fname}"
+
+
+def save_warranty_document(upload):
+    """Image or PDF → normalized A4 PDF (PNG pages, max edge 2048 px)."""
+    if not upload or upload.filename == "":
+        return None
+    raw = secure_filename(upload.filename)
+    if not raw or not allowed_ext(raw, ALLOWED_DOC):
+        return None
+    ext = raw.rsplit(".", 1)[1].lower()
+    upload.stream.seek(0)
+    data = upload.read()
+    try:
+        pdf_bytes = warranty_upload_to_pdf_bytes(data, ext)
+    except WarrantyPdfError:
+        raise
+    except Exception as e:
+        raise WarrantyPdfError("flash.warranty_doc_failed") from e
+    fname = f"doc_{uuid.uuid4().hex}.pdf"
+    fpath = UPLOAD_DIR / fname
+    fpath.write_bytes(pdf_bytes)
     return f"uploads/{fname}"
 
 
@@ -436,7 +460,14 @@ def add_warranty():
             return render_template("warranty_form.html", categories=load_categories(), form=request.form)
         cat_val = int(category_id) if category_id else None
         thumb = save_thumbnail(request.files.get("thumbnail"))
-        doc = save_upload(request.files.get("warranty_file"), "doc", ALLOWED_DOC)
+        try:
+            doc = save_warranty_document(request.files.get("warranty_file"))
+        except WarrantyPdfError as e:
+            delete_file_if_exists(thumb)
+            flash(translate(e.key), "error")
+            return render_template(
+                "warranty_form.html", categories=load_categories(), form=request.form
+            )
         with closing(get_conn()) as conn:
             conn.execute(
                 """
@@ -477,7 +508,18 @@ def edit_warranty(wid):
             )
         cat_val = int(category_id) if category_id else None
         thumb = save_thumbnail(request.files.get("thumbnail"))
-        doc = save_upload(request.files.get("warranty_file"), "doc", ALLOWED_DOC)
+        try:
+            doc = save_warranty_document(request.files.get("warranty_file"))
+        except WarrantyPdfError as e:
+            delete_file_if_exists(thumb)
+            flash(translate(e.key), "error")
+            return render_template(
+                "warranty_form.html",
+                categories=load_categories(),
+                form=request.form,
+                warranty=dict(row),
+                edit=True,
+            )
         thumb_path = thumb or row["thumbnail_image"]
         doc_path = doc or row["warranty_file"]
         if thumb and row["thumbnail_image"]:

@@ -12,10 +12,10 @@ A4_H = 297 * 72 / 25.4
 
 A4_FILL = 0.9
 MAX_PDF_PAGES = 40
-# Long edge after resize: enough for sharp A4 on screen/print; lower = smaller PDFs.
-DOC_MAX_EDGE = 1500
+# Long edge after resize (px).
+DOC_MAX_EDGE = 2000
 # Embedded raster: JPEG inside PDF (PyMuPDF passes stream through as DCT).
-JPEG_QUALITY = 72
+JPEG_QUALITY = 75
 JPEG_SUBSAMPLING = 2  # 4:2:0
 
 
@@ -145,5 +145,22 @@ def images_to_a4_pdf(images: list[Image.Image]) -> bytes:
 
 
 def warranty_upload_to_pdf_bytes(data: bytes, ext: str) -> bytes:
-    pages = _build_pages(data, ext)
-    return images_to_a4_pdf(pages)
+    return warranty_uploads_to_pdf_bytes([(data, ext)])
+
+
+def warranty_uploads_to_pdf_bytes(parts: list[tuple[bytes, str]]) -> bytes:
+    """One or more uploads → one PDF. Multiple files = images only, one page per photo."""
+    if not parts:
+        raise WarrantyPdfError("flash.warranty_doc_failed")
+    if len(parts) > 1:
+        for _, ext in parts:
+            if ext.lower() == "pdf":
+                raise WarrantyPdfError("flash.warranty_doc_multi_no_pdf")
+        if len(parts) > MAX_PDF_PAGES:
+            raise WarrantyPdfError("flash.warranty_doc_too_many_photos")
+    all_pages: list[Image.Image] = []
+    for data, ext in parts:
+        all_pages.extend(_build_pages(data, ext))
+    if len(all_pages) > MAX_PDF_PAGES:
+        raise WarrantyPdfError("flash.warranty_doc_too_many_pages")
+    return images_to_a4_pdf(all_pages)

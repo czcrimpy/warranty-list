@@ -24,7 +24,7 @@ from flask import (
 from PIL import Image, ImageOps
 from werkzeug.utils import secure_filename
 
-from warranty_pdf import WarrantyPdfError, warranty_upload_to_pdf_bytes
+from warranty_pdf import WarrantyPdfError, warranty_uploads_to_pdf_bytes
 
 from i18n import (
     COOKIE_MAX_AGE,
@@ -195,23 +195,30 @@ def allowed_ext(filename, allowed):
     return filename.rsplit(".", 1)[1].lower() in allowed
 
 
-def save_warranty_document(upload):
-    """Image or PDF → normalized A4 PDF (JPEG in PDF, long edge capped for size)."""
-    if not upload or upload.filename == "":
+def save_warranty_document(uploads):
+    """One or more files (same field, multiple) → normalized A4 PDF. Multiple = images only."""
+    if not uploads:
         return None
-    raw = secure_filename(upload.filename)
-    if not raw or not allowed_ext(raw, ALLOWED_DOC):
+    if not isinstance(uploads, (list, tuple)):
+        uploads = [uploads]
+    parts = []
+    for upload in uploads:
+        if not upload or not getattr(upload, "filename", None) or upload.filename == "":
+            continue
+        raw = secure_filename(upload.filename)
+        if not raw or not allowed_ext(raw, ALLOWED_DOC):
+            return None
+        ext = raw.rsplit(".", 1)[1].lower()
+        upload.stream.seek(0)
+        parts.append((upload.read(), ext))
+    if not parts:
         return None
-    ext = raw.rsplit(".", 1)[1].lower()
-    upload.stream.seek(0)
-    data = upload.read()
     try:
-        pdf_bytes = warranty_upload_to_pdf_bytes(data, ext)
+        return warranty_uploads_to_pdf_bytes(parts)
     except WarrantyPdfError:
         raise
     except Exception as e:
         raise WarrantyPdfError("flash.warranty_doc_failed") from e
-    return pdf_bytes
 
 
 def save_thumbnail(upload):
@@ -512,7 +519,7 @@ def add_warranty():
         cat_val = int(category_id) if category_id else None
         thumb = save_thumbnail(request.files.get("thumbnail"))
         try:
-            doc = save_warranty_document(request.files.get("warranty_file"))
+            doc = save_warranty_document(request.files.getlist("warranty_file"))
         except WarrantyPdfError as e:
             flash(translate(e.key), "error")
             return render_template(
@@ -572,7 +579,7 @@ def edit_warranty(wid):
         cat_val = int(category_id) if category_id else None
         thumb = save_thumbnail(request.files.get("thumbnail"))
         try:
-            doc = save_warranty_document(request.files.get("warranty_file"))
+            doc = save_warranty_document(request.files.getlist("warranty_file"))
         except WarrantyPdfError as e:
             flash(translate(e.key), "error")
             return render_template(

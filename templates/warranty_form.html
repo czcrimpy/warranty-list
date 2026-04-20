@@ -72,7 +72,7 @@
 
       <div>
         <label for="warranty_file" class="mb-1.5 block text-sm font-semibold text-slate-700">{{ t('wform.warranty_file') }}</label>
-        <input type="file" id="warranty_file" name="warranty_file" accept=".pdf,image/*"
+        <input type="file" id="warranty_file" name="warranty_file" multiple accept=".pdf,image/*"
           class="block w-full cursor-pointer rounded-xl border border-dashed border-slate-300 bg-slate-50/50 px-4 py-3 text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-700 hover:border-slate-400">
         {% if edit and w.get('has_pdf') %}
           <p class="mt-2 text-xs text-slate-500">{{ t('wform.current_view') }} <a href="{{ url_for('warranty_document', wid=w.id) }}" target="_blank" rel="noopener" class="font-medium text-indigo-600 hover:text-indigo-800">{{ t('wform.open') }}</a> {{ t('wform.keep_hint') }}</p>
